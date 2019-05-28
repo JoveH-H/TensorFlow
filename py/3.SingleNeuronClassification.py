@@ -45,7 +45,7 @@ pred = tf.nn.softmax(forward)
 
 # 定义损失函数
 with tf.name_scope("LossFunction"):
-    loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(pred)+(1-y)*tf.log(1-pred), reduction_indices=1))
+    loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(pred) + (1 - y) * tf.log(1 - pred), reduction_indices=1))
 
 train_epochs = 50  # 迭代次数
 learning_rate = 0.01  # 学习率
