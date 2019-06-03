@@ -6,3 +6,5 @@ TensorFlow例程
 2.MultipleLinearRegression 多元线性回归
 
 3.SingleNeuronClassification 单神经元分类
+
+4.MultineuronClassification 多神经元分类
