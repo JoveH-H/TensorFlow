@@ -90,7 +90,7 @@ b_fc2 = bias_variable([10])
 forward = tf.matmul(h_fc1, W_fc2) + b_fc2
 pred = tf.nn.softmax(forward)
 
-train_epochs = 20  # 迭代次数
+train_epochs = 10  # 迭代次数
 learning_rate = 1e-3  # 学习率
 
 # 定义损失函数
