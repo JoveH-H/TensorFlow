@@ -95,7 +95,7 @@ learning_rate = 1e-3  # 学习率
 
 # 定义损失函数
 with tf.name_scope("LossFunction"):
-    loss_function = tf.reduce_mean(tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y)))
+    loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
 
 # Adam优化器 设置学习率和优化目标损失最小化
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss_function)
