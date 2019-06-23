@@ -9,4 +9,4 @@ TensorFlow例程
 
 4.MultineuronClassification 多神经元分类
 
-5.ConvolutionalNeuralNetwork 卷积神经网络
+5.CNN-LeNet-5 LeNet-5卷积神经网络
