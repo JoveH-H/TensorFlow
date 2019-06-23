@@ -1,5 +1,7 @@
 # TensorFlow
-TensorFlow例程
+TensorFlow笔记 博客：https://blog.csdn.net/qq_32618327/column/info/39221
+
+TensorFlow代码例程目录
 
 1.LinearRegressionWithOneVariable 单变量线性回归
 
