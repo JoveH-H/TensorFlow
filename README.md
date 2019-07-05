@@ -12,3 +12,5 @@ TensorFlow代码例程目录
 4.MultineuronClassification 多神经元分类
 
 5.CNN-LeNet-5 LeNet-5卷积神经网络
+
+6.ResNet 残差网络
