@@ -82,9 +82,9 @@ plt.imshow(Xtrain[imshow_num])
 plt.show()
 print("Xtrain[{0}] label:".format(imshow_num), label_dict[Ytrain[imshow_num]])
 
-# 图像进行数字标准化
-Xtrain_normalize = Xtrain.astype('float32') / 255.0
-Xtest_normalize = Xtest.astype('float32') / 255.0
+# 图像进行数字归一化
+Xtrain_normalize = Xtrain.astype('float32') / 255.0 - 0.5
+Xtest_normalize = Xtest.astype('float32') / 255.0 - 0.5
 
 # 对比图像数据
 print("Xtrain[0][0][0] data:", Xtrain[0][0][0])
@@ -216,17 +216,18 @@ h_conv3 = tf.nn.relu(conv2d_v(x_image, w_conv3) + b_conv3)
 h_lrn2 = tf.nn.lrn(h_conv3, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
 h_pool2 = h_lrn2
 
-# 第三层 inception 3a > inception 3b > max_pool 3x3+2s
-# inception 3a conv 1x1 64 + conv 1x1 96 > conv 3x3 128 + conv 1x1 16 > conv 3x3 32 + max_pool 3x3 > conv 3x3 32
-filters_num_3a = [64, 96, 128, 16, 32, 32]
+# 第三层
+# inception 3a
+filters_num_3a = [64, 96, 128, 16, 32, 32]  # 设置inception 3a的通道数
 inception_3a = inception(h_pool2, 192, filters_num_3a)
 
-# inception 3b conv 1x1 128 + conv 1x1 128 > conv 3x3 192 + conv 1x1 32 > conv 3x3 96 + max_pool 3x3 > conv 3x3 64
+# inception 3b
 filters_num_3b = [128, 128, 192, 32, 96, 64]
 inception_3b = inception(inception_3a, 256, filters_num_3b)
+
 h_pool3 = max_pool_3x3_2(inception_3b)
 
-# 第四层 inception 4a > inception 4b + softmax0 > inception 4c > inception 4d > inception 4e + softmax1 > max_pool 3x3+2s
+# 第四层                                 >
 # inception 4a
 filters_num_4a = [192, 96, 208, 16, 48, 64]
 inception_4a = inception(h_pool3, 480, filters_num_4a)
@@ -282,7 +283,7 @@ h_fc4 = tf.matmul(h_fc3_drop, W_fc4) + b_fc4
 # > softmax1
 pred1 = tf.nn.softmax(h_fc4)
 
-# 第五层 inception 5a > inception 5b
+# 第五层
 # inception 5a
 filters_num_5a = [256, 160, 320, 32, 128, 128]
 inception_5a = inception(h_pool5, 832, filters_num_5a)
@@ -290,9 +291,11 @@ inception_5a = inception(h_pool5, 832, filters_num_5a)
 filters_num_5b = [384, 192, 384, 48, 128, 128]
 inception_5b = inception(inception_5a, 832, filters_num_5b)
 
-# 第六层 avg_pool_7x7 >
+# avg_pool_7x7
 h_pool7 = avg_pool_7x7(inception_5b)
 h_flat3 = tf.reshape(h_pool7, shape=[-1, 1 * 1 * 1024])  # 重新展开
+
+# softmax2
 dropout_rate2 = tf.placeholder("float")
 h_pool7_drop = tf.nn.dropout(h_flat3, rate=dropout_rate2)
 W_fc5 = weight_variable([1024, 10])
@@ -300,15 +303,16 @@ b_fc5 = bias_variable([10])
 h_fc5 = tf.matmul(h_pool7_drop, W_fc5) + b_fc2
 pred2 = tf.nn.softmax(h_fc5)
 
+# 整合softmax
 forward = h_fc5 * 0.4 + h_fc4 * 0.3 + h_fc2 * 0.3
 pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
-
-train_epochs = 1  # 迭代次数
-learning_rate = 1e-3  # 学习率
 
 # 定义损失函数
 with tf.name_scope("LossFunction"):
     loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
+
+train_epochs = 5  # 迭代次数
+learning_rate = 0.001  # 学习率
 
 # Adam优化器 设置学习率和优化目标损失最小化
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss_function)
@@ -323,30 +327,63 @@ sess = tf.Session()  # 建立会话
 init = tf.global_variables_initializer()  # 变量初始化
 sess.run(init)
 
-# 每个批次的大小，每次放入的大小，每次放入 100张图片 以矩阵的方式
+# 每个批次的大小，每次放入的大小，每次放入 50张图片 以矩阵的方式
 batch_size = 50
 
 # 计算一共有多少个批次，数量整除大小训练出有多少批次
 n_batch = 50000 // batch_size
 
 
+# 定义训练集批次函数
 def get_train_batch(num, size):
     return Xtrain_normalize[num * size:(num + 1) * size], \
            Ytrain_onehot[num * size:(num + 1) * size]
 
 
+# 定义保存模型
+saver = tf.train.Saver()
+
+# 迭代训练
 for epoch in range(train_epochs):
     for batch in range(n_batch):
         xs, ys = get_train_batch(batch, batch_size)
         sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
-    # 批次训练完成之后，使用验证数据计算误差与准确率
-    loss, acc = sess.run([loss_function, accuracy],
-                         feed_dict={x: Xtest_normalize[0:100],
-                                    y: Ytest_onehot[0:100],
-                                    dropout_rate0: 0, dropout_rate1: 0, dropout_rate2: 0})
-    # 显示训练信息
-    print("Train Epoch", '%02d' % (epoch + 1), "Loss=", '{:.9f}'.format(loss),
-          "Accuracy=", "{:.4f}".format(acc))
+
+        if batch % 100 == 0:
+            # 保存模型
+            saver.save(sess, "D:/save_path/GoogleNet_model_%02d_%04d" % (epoch + 1, batch + 1))
+            print("Complete save GoogleNet_model_%02d_%04d" % (epoch + 1, batch + 1))
+            # 批次训练完成之后，使用验证数据计算误差与准确率
+            loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_normalize[0:100],
+                                                                       y: Ytest_onehot[0:100],
+                                                                       dropout_rate0: 0, dropout_rate1: 0,
+                                                                       dropout_rate2: 0})
+            # 显示训练信息
+            print("TrainEpoch=", '%02d' % (epoch + 1), "TrainBatch=", '%04d' % (batch + 1),
+                  "Loss=", '{:.9f}'.format(loss), "Accuracy=", "{:.4f}".format(acc))
+        elif batch % 10 == 0:
+            print(".", end="")
+
+saver.save(sess, "D:/save_path/GoogleNet_model")
+print("Complete save GoogleNet_model")
+
+# 测试集上评估模型预测的准确率
+test_total_batch = int(len(Xtest_normalize) / batch_size)
+test_acc_sum = 0.0
+for i in range(test_total_batch):
+    test_image_batch = Xtest_normalize[i * batch_size:(i + 1) * batch_size]
+    test_label_batch = Ytest_onehot[i * batch_size:(i + 1) * batch_size]
+    test_batch_acc = sess.run(accuracy, feed_dict={x: test_image_batch, y: test_label_batch,
+                                                   dropout_rate0: 0, dropout_rate1: 0, dropout_rate2: 0})
+    test_acc_sum += test_batch_acc
+test_acc = float(test_acc_sum / test_total_batch)
+print("Test accuracy:f.6f".format(test_acc))
+
+# 转换pred预测结果独热编码格式为数字0-9
+prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_normalize})
+
+# # 查看第500-509张测试图片的预测结果
+print(prediction_result[500:510])
 
 
 # 定义显示图缘数据及其对应标签的函数
