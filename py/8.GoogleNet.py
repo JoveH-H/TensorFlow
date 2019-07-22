@@ -6,6 +6,7 @@ import urllib.request
 import tarfile
 import pickle as p
 from sklearn.preprocessing import OneHotEncoder
+import random
 
 # 下载 cifar10
 url = 'https://www.cs.toronto.edu/-kriz/cifar-10-python.tar.gz'
@@ -311,7 +312,7 @@ pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
 with tf.name_scope("LossFunction"):
     loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
 
-train_epochs = 1  # 迭代次数
+train_epochs = 2  # 迭代次数
 learning_rate = 0.001  # 学习率
 
 # Adam优化器 设置学习率和优化目标损失最小化
@@ -329,20 +330,12 @@ batch_size = 50
 # 计算一共有多少个批次，数量整除大小训练出有多少批次
 n_batch = 50000 // batch_size
 
-
-# 定义训练集批次函数
-def get_train_batch(num, size):
-    return Xtrain_normalize[num * size:(num + 1) * size], \
-           Ytrain_onehot[num * size:(num + 1) * size]
-
-
 # 定义保存模型
 saver = tf.train.Saver()
 save_dir = "D:/save_path/GoogleNet/"
 
-# 定义保存模型编号和训练起始批次(100倍数)
+# 定义保存模型编号和
 save_step = 0
-batch_step_100 = 0
 
 # 恢复保存模型
 ckpt_dir = tf.train.latest_checkpoint(save_dir)
@@ -350,8 +343,7 @@ sess = tf.Session()  # 建立会话
 if ckpt_dir != None:
     saver.restore(sess, ckpt_dir)
     print("Finished loading", ckpt_dir)
-    save_step = int(input("Set loading save step:"))
-    batch_step_100 = int(input("Set train batch start step:")) * 100
+    save_step = int(input("Set the load save step:"))
 else:
     # 变量初始化
     sess.run(tf.initialize_all_variables())
@@ -362,15 +354,33 @@ display_test_num = 100
 # 定义显示训练过程.的间隔批量次数
 display_train_num = 10
 
+
+# 定义训练集批次函数
+def get_train_batch(num, size):
+    return Xtrain_normalize_shuffle[num * size:(num + 1) * size], \
+           Ytrain_onehot_shuffle[num * size:(num + 1) * size]
+
+
 # 迭代训练
 for epoch in range(train_epochs):
-    for batch in range(batch_step_100, n_batch):
+    # 打乱训练数据集
+    index = [i for i in range(len(Ytrain_onehot))]
+    random.shuffle(index)
+    Xtrain_normalize_shuffle = Xtrain_normalize[index]
+    Ytrain_onehot_shuffle = Ytrain_onehot[index]
+
+    # 批次迭代训练
+    for batch in range(0, n_batch):
         xs, ys = get_train_batch(batch, batch_size)
         sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
 
+        if (batch + 1) % (display_test_num // display_train_num) == 0:
+            print(".", end="")
+
         if (batch + 1) % display_test_num == 0:
             # 保存模型
-            save_path = saver.save(sess, save_dir + "model", global_step=save_step + 1)
+            save_step += 1
+            save_path = saver.save(sess, save_dir + "model", global_step=save_step)
             print("Complete save ", save_path)
             # 批次训练完成之后，使用验证数据计算误差与准确率
             loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_normalize[0:100],
@@ -381,8 +391,6 @@ for epoch in range(train_epochs):
             # 显示训练信息
             print("TrainEpoch=", '%02d' % (epoch + 1), "TrainBatch=", '%04d' % (batch + 1),
                   "Loss=", '{:.9f}'.format(loss), "Accuracy=", "{:.4f}".format(acc))
-        elif (batch + 1) % (display_test_num // display_train_num) == 0:
-            print(".", end="")
 
 # 测试集上评估模型预测的准确率
 test_total_batch = int(len(Xtest_normalize) / batch_size)
@@ -402,7 +410,7 @@ prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_normalize[0
                                                             dropout_rate1: 0,
                                                             dropout_rate2: 0})
 
-# # 查看第1-10张测试图片的预测结果
+# 查看第1-10张测试图片的预测结果
 print(prediction_result)
 
 
@@ -423,6 +431,7 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
     plt.show()
 
 
+# 验证第1-10张测试图片的预测结果
 test_pred = sess.run(pred, feed_dict={x: Xtest_normalize[:10],
                                       dropout_rate0: 0,
                                       dropout_rate1: 0,
