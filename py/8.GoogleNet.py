@@ -357,13 +357,18 @@ else:
     sess.run(tf.initialize_all_variables())
     print("Finished initialize")
 
+# 定义显示训练过程中验证的间隔批量次数
+display_test_num = 100
+# 定义显示训练过程.的间隔批量次数
+display_train_num = 10
+
 # 迭代训练
 for epoch in range(train_epochs):
     for batch in range(batch_step_100, n_batch):
         xs, ys = get_train_batch(batch, batch_size)
         sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
 
-        if (batch + 1) % 100 == 0:
+        if (batch + 1) % display_test_num == 0:
             # 保存模型
             save_path = saver.save(sess, save_dir + "model", global_step=save_step + 1)
             print("Complete save ", save_path)
@@ -376,7 +381,7 @@ for epoch in range(train_epochs):
             # 显示训练信息
             print("TrainEpoch=", '%02d' % (epoch + 1), "TrainBatch=", '%04d' % (batch + 1),
                   "Loss=", '{:.9f}'.format(loss), "Accuracy=", "{:.4f}".format(acc))
-        elif batch % 10 == 0:
+        elif (batch + 1) % (display_test_num // display_train_num) == 0:
             print(".", end="")
 
 # 测试集上评估模型预测的准确率
