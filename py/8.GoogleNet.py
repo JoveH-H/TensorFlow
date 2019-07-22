@@ -323,10 +323,6 @@ correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 # 定义准确率，将布尔值转化成浮点数，再求平均值
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-sess = tf.Session()  # 建立会话
-init = tf.global_variables_initializer()  # 变量初始化
-sess.run(init)
-
 # 每个批次的大小，每次放入的大小，每次放入 50张图片 以矩阵的方式
 batch_size = 50
 
@@ -342,33 +338,46 @@ def get_train_batch(num, size):
 
 # 定义保存模型
 saver = tf.train.Saver()
-# save_step = 0
+save_dir = "D:/save_path/GoogleNet/"
+
+# 定义保存模型编号和训练起始批次(100倍数)
+save_step = 0
+batch_step_100 = 0
+
 # 恢复保存模型
-# saver.restore(sess, "D:/save_path/GoogleNet/model" + "-{}".format(save_step))
+ckpt_dir = tf.train.latest_checkpoint(save_dir)
+sess = tf.Session()  # 建立会话
+if ckpt_dir != None:
+    saver.restore(sess, ckpt_dir)
+    print("Finished loading", ckpt_dir)
+    save_step = int(input("Set loading save step:"))
+    batch_step_100 = int(input("Set train batch start step:")) * 100
+else:
+    # 变量初始化
+    sess.run(tf.initialize_all_variables())
+    print("Finished initialize")
 
 # 迭代训练
 for epoch in range(train_epochs):
-    for batch in range(save_step * 100, n_batch):
+    for batch in range(batch_step_100, n_batch):
         xs, ys = get_train_batch(batch, batch_size)
         sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
 
         if (batch + 1) % 100 == 0:
             # 保存模型
-            save_path = saver.save(sess, "D:/save_path/GoogleNet/model", global_step=save_step+1)
+            save_path = saver.save(sess, save_dir + "model", global_step=save_step + 1)
             print("Complete save ", save_path)
             # 批次训练完成之后，使用验证数据计算误差与准确率
             loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_normalize[0:100],
                                                                        y: Ytest_onehot[0:100],
-                                                                       dropout_rate0: 0, dropout_rate1: 0,
+                                                                       dropout_rate0: 0,
+                                                                       dropout_rate1: 0,
                                                                        dropout_rate2: 0})
             # 显示训练信息
             print("TrainEpoch=", '%02d' % (epoch + 1), "TrainBatch=", '%04d' % (batch + 1),
                   "Loss=", '{:.9f}'.format(loss), "Accuracy=", "{:.4f}".format(acc))
         elif batch % 10 == 0:
             print(".", end="")
-
-saver.save(sess, "D:/save_path/GoogleNet/GoogleNet_model")
-print("Complete save GoogleNet/GoogleNet_model")
 
 # 测试集上评估模型预测的准确率
 test_total_batch = int(len(Xtest_normalize) / batch_size)
@@ -382,11 +391,14 @@ for i in range(test_total_batch):
 test_acc = float(test_acc_sum / test_total_batch)
 print("Test accuracy:f.6f".format(test_acc))
 
-# 转换pred预测结果独热编码格式为数字0-9
-prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_normalize})
+# 转换第1-10张测试图片pred预测结果独热编码格式为数字0-9
+prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_normalize[0:10],
+                                                            dropout_rate0: 0,
+                                                            dropout_rate1: 0,
+                                                            dropout_rate2: 0})
 
-# # 查看第500-509张测试图片的预测结果
-print(prediction_result[500:510])
+# # 查看第1-10张测试图片的预测结果
+print(prediction_result)
 
 
 # 定义显示图缘数据及其对应标签的函数
@@ -406,7 +418,10 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
     plt.show()
 
 
-test_pred = sess.run(pred, feed_dict={x: Xtest_normalize[:10]})
+test_pred = sess.run(pred, feed_dict={x: Xtest_normalize[:10],
+                                      dropout_rate0: 0,
+                                      dropout_rate1: 0,
+                                      dropout_rate2: 0})
 rediction_result = sess.run(tf.argmax(test_pred, 1))
 
 # 显示國像数据及其对应标签
