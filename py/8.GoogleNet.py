@@ -311,7 +311,7 @@ pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
 with tf.name_scope("LossFunction"):
     loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
 
-train_epochs = 5  # 迭代次数
+train_epochs = 1  # 迭代次数
 learning_rate = 0.001  # 学习率
 
 # Adam优化器 设置学习率和优化目标损失最小化
@@ -342,17 +342,20 @@ def get_train_batch(num, size):
 
 # 定义保存模型
 saver = tf.train.Saver()
+# save_step = 0
+# 恢复保存模型
+# saver.restore(sess, "D:/save_path/GoogleNet/model" + "-{}".format(save_step))
 
 # 迭代训练
 for epoch in range(train_epochs):
-    for batch in range(n_batch):
+    for batch in range(save_step * 100, n_batch):
         xs, ys = get_train_batch(batch, batch_size)
         sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
 
-        if batch % 100 == 0:
+        if (batch + 1) % 100 == 0:
             # 保存模型
-            saver.save(sess, "D:/save_path/GoogleNet_model_%02d_%04d" % (epoch + 1, batch + 1))
-            print("Complete save GoogleNet_model_%02d_%04d" % (epoch + 1, batch + 1))
+            save_path = saver.save(sess, "D:/save_path/GoogleNet/model", global_step=save_step+1)
+            print("Complete save ", save_path)
             # 批次训练完成之后，使用验证数据计算误差与准确率
             loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_normalize[0:100],
                                                                        y: Ytest_onehot[0:100],
@@ -364,8 +367,8 @@ for epoch in range(train_epochs):
         elif batch % 10 == 0:
             print(".", end="")
 
-saver.save(sess, "D:/save_path/GoogleNet_model")
-print("Complete save GoogleNet_model")
+saver.save(sess, "D:/save_path/GoogleNet/GoogleNet_model")
+print("Complete save GoogleNet/GoogleNet_model")
 
 # 测试集上评估模型预测的准确率
 test_total_batch = int(len(Xtest_normalize) / batch_size)
