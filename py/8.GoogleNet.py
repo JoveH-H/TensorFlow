@@ -7,7 +7,6 @@ import tarfile
 import pickle as p
 from sklearn.preprocessing import OneHotEncoder
 import random
-import time
 
 # 下载 cifar10
 url = 'https://www.cs.toronto.edu/-kriz/cifar-10-python.tar.gz'
@@ -477,5 +476,5 @@ test_pred = sess.run(pred, feed_dict={x: Xtest_norm[:10],
                                       dropout_rate2: 0})
 rediction_result = sess.run(tf.argmax(test_pred, 1))
 
-# 显示國像数据及其对应标签
+# 显示图像数据及其对应标签
 plot_images_labels_prediction(Xtest, Ytest, rediction_result, 0, 10)
