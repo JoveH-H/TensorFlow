@@ -7,6 +7,7 @@ import tarfile
 import pickle as p
 from sklearn.preprocessing import OneHotEncoder
 import random
+import time
 
 # 下载 cifar10
 url = 'https://www.cs.toronto.edu/-kriz/cifar-10-python.tar.gz'
@@ -84,12 +85,31 @@ plt.show()
 print("Xtrain[{0}] label:".format(imshow_num), label_dict[Ytrain[imshow_num]])
 
 # 图像进行数字归一化
-Xtrain_normalize = Xtrain.astype('float32') / 255.0 - 0.5
-Xtest_normalize = Xtest.astype('float32') / 255.0 - 0.5
+Xtrain_mean0 = np.mean(Xtrain.astype('float32')[:, :, :, 0])
+Xtrain_mean1 = np.mean(Xtrain.astype('float32')[:, :, :, 1])
+Xtrain_mean2 = np.mean(Xtrain.astype('float32')[:, :, :, 2])
+Xtrain_mean = [Xtrain_mean0, Xtrain_mean1, Xtrain_mean2]
+
+Xtrain_std0 = np.std(Xtrain.astype('float32')[:, :, :, 0])
+Xtrain_std1 = np.std(Xtrain.astype('float32')[:, :, :, 1])
+Xtrain_std2 = np.std(Xtrain.astype('float32')[:, :, :, 2])
+Xtrain_std = [Xtrain_std0, Xtrain_std1, Xtrain_std2]
+
+
+def data_norm(x, x_mean, x_std):
+    x_norm = x.astype('float32')
+    x_norm[:, :, :, 0] = (x_norm[:, :, :, 0] - x_mean[0]) / x_std[0]
+    x_norm[:, :, :, 1] = (x_norm[:, :, :, 1] - x_mean[1]) / x_std[1]
+    x_norm[:, :, :, 2] = (x_norm[:, :, :, 2] - x_mean[2]) / x_std[2]
+    return x_norm
+
+
+Xtrain_norm = data_norm(Xtrain, Xtrain_mean, Xtrain_std)
+Xtest_norm = data_norm(Xtest, Xtrain_mean, Xtrain_std)
 
 # 对比图像数据
 print("Xtrain[0][0][0] data:", Xtrain[0][0][0])
-print("Xtrain_normalize[0][0][0] data:", Xtrain_normalize[0][0][0])
+print("Xtrain_norm[0][0][0] data:", Xtrain_norm[0][0][0])
 
 # 标签数据处理
 encoder = OneHotEncoder(sparse=False, categories='auto')
@@ -194,7 +214,7 @@ def inception(x, channel_in, filters_num):
 
 
 # 第一层 conv 7x7+2s 64 > max_pool 3x3+2s > lrn
-# w_conv1 = weight_variable([7, 7, 1, 64])
+# w_conv1 = weight_variable([7, 7, 3, 64])
 # b_conv1 = bias_variable([64])
 # h_conv1 = tf.nn.relu(conv2d_2(x_image, w_conv1) + b_conv1)
 # h_pool1 = max_pool_3x3_2(h_conv1)
@@ -210,12 +230,22 @@ def inception(x, channel_in, filters_num):
 # h_lrn2 = tf.nn.lrn(h_conv3, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
 # h_pool2 = max_pool_3x3_2(h_lrn2)
 
-# cifar10图片尺寸较小，为配合后续的计算，不再进行一二层直接压缩成28x28x192
-w_conv3 = weight_variable([5, 5, 3, 192])
+# cifar10图片尺寸较小，为配合后续的计算，调整一些原有结构压缩成28x28x192
+# 第一层
+w_conv1 = weight_variable([3, 3, 3, 64])
+b_conv1 = bias_variable([64])
+h_conv1 = tf.nn.relu(conv2d_v(x_image, w_conv1) + b_conv1)
+h_pool1 = max_pool_3x3(h_conv1)
+hh_lrn1 = tf.nn.lrn(h_pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
+# 第二层
+w_conv2 = weight_variable([1, 1, 64, 64])
+b_conv2 = bias_variable([64])
+h_conv2 = tf.nn.relu(conv2d(hh_lrn1, w_conv2) + b_conv2)
+w_conv3 = weight_variable([3, 3, 64, 192])
 b_conv3 = bias_variable([192])
-h_conv3 = tf.nn.relu(conv2d_v(x_image, w_conv3) + b_conv3)
+h_conv3 = tf.nn.relu(conv2d_v(h_conv2, w_conv3) + b_conv3)
 h_lrn2 = tf.nn.lrn(h_conv3, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
-h_pool2 = h_lrn2
+h_pool2 = max_pool_3x3(h_lrn2)
 
 # 第三层
 # inception 3a
@@ -312,7 +342,7 @@ pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
 with tf.name_scope("LossFunction"):
     loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
 
-train_epochs = 2  # 迭代次数
+train_epochs = 5  # 迭代次数
 learning_rate = 0.001  # 学习率
 
 # Adam优化器 设置学习率和优化目标损失最小化
@@ -324,17 +354,23 @@ correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 # 定义准确率，将布尔值转化成浮点数，再求平均值
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-# 每个批次的大小，每次放入的大小，每次放入 50张图片 以矩阵的方式
-batch_size = 50
+# 每个批次的大小，每次放入的大小，每次放入 256张图片 以矩阵的方式
+batch_size = 256
 
 # 计算一共有多少个批次，数量整除大小训练出有多少批次
-n_batch = 50000 // batch_size
+n_batch = len(Ytrain_onehot) // batch_size
+
+# 定义显示训练过程中验证的间隔批量次数
+display_test_num = n_batch // 10
+
+# 定义显示训练过程.的间隔批量次数
+display_train_num = display_test_num // 10
 
 # 定义保存模型
 saver = tf.train.Saver()
 save_dir = "D:/save_path/GoogleNet/"
 
-# 定义保存模型编号和
+# 定义保存模型编号
 save_step = 0
 
 # 恢复保存模型
@@ -349,16 +385,15 @@ else:
     sess.run(tf.initialize_all_variables())
     print("Finished initialize")
 
-# 定义显示训练过程中验证的间隔批量次数
-display_test_num = 100
-# 定义显示训练过程.的间隔批量次数
-display_train_num = 10
-
 
 # 定义训练集批次函数
 def get_train_batch(num, size):
-    return Xtrain_normalize_shuffle[num * size:(num + 1) * size], \
-           Ytrain_onehot_shuffle[num * size:(num + 1) * size]
+    # 随机上下翻转批次图片
+    Xtrain_batch = tf.image.random_flip_up_down(Xtrain_norm_shuffle[num * size:(num + 1) * size]).eval(session=sess)
+    # 随机左右翻转批次图片
+    Xtrain_batch = tf.image.random_flip_left_right(Xtrain_batch).eval(session=sess)
+    Ytrain_batch = Ytrain_onehot_shuffle[num * size:(num + 1) * size]
+    return Xtrain_batch, Ytrain_batch
 
 
 # 迭代训练
@@ -366,15 +401,15 @@ for epoch in range(train_epochs):
     # 打乱训练数据集
     index = [i for i in range(len(Ytrain_onehot))]
     random.shuffle(index)
-    Xtrain_normalize_shuffle = Xtrain_normalize[index]
+    Xtrain_norm_shuffle = Xtrain_norm[index]
     Ytrain_onehot_shuffle = Ytrain_onehot[index]
 
     # 批次迭代训练
     for batch in range(0, n_batch):
         xs, ys = get_train_batch(batch, batch_size)
-        sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.3, dropout_rate1: 0.3, dropout_rate2: 0.3})
+        sess.run(optimizer, feed_dict={x: xs, y: ys, dropout_rate0: 0.5, dropout_rate1: 0.5, dropout_rate2: 0.5})
 
-        if (batch + 1) % (display_test_num // display_train_num) == 0:
+        if (batch + 1) % display_train_num == 0:
             print(".", end="")
 
         if (batch + 1) % display_test_num == 0:
@@ -382,30 +417,34 @@ for epoch in range(train_epochs):
             save_step += 1
             save_path = saver.save(sess, save_dir + "model", global_step=save_step)
             print("Complete save ", save_path)
-            # 批次训练完成之后，使用验证数据计算误差与准确率
-            loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_normalize[0:100],
-                                                                       y: Ytest_onehot[0:100],
+            # 批次训练完成之后，使用测试数据计算误差与准确率
+            loss, acc = sess.run([loss_function, accuracy], feed_dict={x: Xtest_norm[0:512],
+                                                                       y: Ytest_onehot[0:512],
                                                                        dropout_rate0: 0,
                                                                        dropout_rate1: 0,
                                                                        dropout_rate2: 0})
             # 显示训练信息
             print("TrainEpoch=", '%02d' % (epoch + 1), "TrainBatch=", '%04d' % (batch + 1),
-                  "Loss=", '{:.9f}'.format(loss), "Accuracy=", "{:.4f}".format(acc))
+                  "Loss=", '{:.9f}'.format(loss), "TestAccuracy=", "{:.4f}".format(acc))
+    learning_rate = 0.95 * learning_rate  # 学习率衰减
 
 # 测试集上评估模型预测的准确率
-test_total_batch = int(len(Xtest_normalize) / batch_size)
+test_total_batch = int(len(Xtest_norm) / batch_size)
 test_acc_sum = 0.0
 for i in range(test_total_batch):
-    test_image_batch = Xtest_normalize[i * batch_size:(i + 1) * batch_size]
+    test_image_batch = Xtest_norm[i * batch_size:(i + 1) * batch_size]
     test_label_batch = Ytest_onehot[i * batch_size:(i + 1) * batch_size]
-    test_batch_acc = sess.run(accuracy, feed_dict={x: test_image_batch, y: test_label_batch,
-                                                   dropout_rate0: 0, dropout_rate1: 0, dropout_rate2: 0})
+    test_batch_acc = sess.run(accuracy, feed_dict={x: test_image_batch,
+                                                   y: test_label_batch,
+                                                   dropout_rate0: 0,
+                                                   dropout_rate1: 0,
+                                                   dropout_rate2: 0})
     test_acc_sum += test_batch_acc
 test_acc = float(test_acc_sum / test_total_batch)
-print("Test accuracy:f.6f".format(test_acc))
+print("Test accuracy:{:.6f}".format(test_acc))
 
 # 转换第1-10张测试图片pred预测结果独热编码格式为数字0-9
-prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_normalize[0:10],
+prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_norm[0:10],
                                                             dropout_rate0: 0,
                                                             dropout_rate1: 0,
                                                             dropout_rate2: 0})
@@ -432,7 +471,7 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
 
 
 # 验证第1-10张测试图片的预测结果
-test_pred = sess.run(pred, feed_dict={x: Xtest_normalize[:10],
+test_pred = sess.run(pred, feed_dict={x: Xtest_norm[:10],
                                       dropout_rate0: 0,
                                       dropout_rate1: 0,
                                       dropout_rate2: 0})
