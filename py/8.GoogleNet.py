@@ -234,12 +234,11 @@ def inception(x, channel_in, filters_num):
 w_conv1 = weight_variable([3, 3, 3, 64])
 b_conv1 = bias_variable([64])
 h_conv1 = tf.nn.relu(conv2d_v(x_image, w_conv1) + b_conv1)
-h_pool1 = max_pool_3x3(h_conv1)
-hh_lrn1 = tf.nn.lrn(h_pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
+ 
 # 第二层
 w_conv2 = weight_variable([1, 1, 64, 64])
 b_conv2 = bias_variable([64])
-h_conv2 = tf.nn.relu(conv2d(hh_lrn1, w_conv2) + b_conv2)
+h_conv2 = tf.nn.relu(conv2d(h_conv1, w_conv2) + b_conv2)
 w_conv3 = weight_variable([3, 3, 64, 192])
 b_conv3 = bias_variable([192])
 h_conv3 = tf.nn.relu(conv2d_v(h_conv2, w_conv3) + b_conv3)
@@ -341,7 +340,7 @@ pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
 with tf.name_scope("LossFunction"):
     loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
 
-train_epochs = 5  # 迭代次数
+train_epochs = 10  # 迭代次数
 learning_rate = 0.001  # 学习率
 
 # Adam优化器 设置学习率和优化目标损失最小化
@@ -353,11 +352,11 @@ correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 # 定义准确率，将布尔值转化成浮点数，再求平均值
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-# 每个批次的大小，每次放入的大小，每次放入 256张图片 以矩阵的方式
-batch_size = 256
+# 每个批次的大小，每次放入的大小，每次放入 128张图片 以矩阵的方式
+batch_size = 128
 
 # 计算一共有多少个批次，数量整除大小训练出有多少批次
-n_batch = len(Ytrain_onehot) // batch_size
+n_batch = len(Ytrain_onehot) // batch_size // 10 * 10
 
 # 定义显示训练过程中验证的间隔批量次数
 display_test_num = n_batch // 10
@@ -384,15 +383,24 @@ else:
     sess.run(tf.initialize_all_variables())
     print("Finished initialize")
 
+# 定义批次训练数据的占位符
+x_batch = tf.placeholder(tf.float32, [None, 32, 32, 3], name="X_batch")
+# 随机上下翻转批次图片
+Xtrain_batch_up = tf.image.random_flip_up_down(x_batch)
+# 随机左右翻转批次图片
+Xtrain_batch_lf = tf.image.random_flip_left_right(Xtrain_batch_up)
+# 对角旋转批次图片
+# Xtrain_batch_tp = tf.image.transpose_image(x_batch)
+
 
 # 定义训练集批次函数
 def get_train_batch(num, size):
-    # 随机上下翻转批次图片
-    Xtrain_batch = tf.image.random_flip_up_down(Xtrain_norm_shuffle[num * size:(num + 1) * size]).eval(session=sess)
-    # 随机左右翻转批次图片
-    Xtrain_batch = tf.image.random_flip_left_right(Xtrain_batch).eval(session=sess)
+    Xtrain_batch = Xtrain_norm_shuffle[num * size:(num + 1) * size]
     Ytrain_batch = Ytrain_onehot_shuffle[num * size:(num + 1) * size]
-    return Xtrain_batch, Ytrain_batch
+    # 随机翻转数据
+    with tf.Session() as sess_batch:
+        Xtrain_batch = sess_batch.run(Xtrain_batch_lf, feed_dict={x_batch: Xtrain_batch})
+        return Xtrain_batch, Ytrain_batch
 
 
 # 迭代训练
@@ -470,11 +478,4 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
 
 
 # 验证第1-10张测试图片的预测结果
-test_pred = sess.run(pred, feed_dict={x: Xtest_norm[:10],
-                                      dropout_rate0: 0,
-                                      dropout_rate1: 0,
-                                      dropout_rate2: 0})
-rediction_result = sess.run(tf.argmax(test_pred, 1))
-
-# 显示图像数据及其对应标签
-plot_images_labels_prediction(Xtest, Ytest, rediction_result, 0, 10)
+plot_images_labels_prediction(Xtest, Ytest, prediction_result, 0, 10)
