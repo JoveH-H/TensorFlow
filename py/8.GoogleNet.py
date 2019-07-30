@@ -234,6 +234,8 @@ def inception(x, channel_in, filters_num):
 w_conv1 = weight_variable([3, 3, 3, 64])
 b_conv1 = bias_variable([64])
 h_conv1 = tf.nn.relu(conv2d_v(x_image, w_conv1) + b_conv1)
+h_pool1 = max_pool_3x3(h_conv1)
+hh_lrn1 = tf.nn.lrn(h_pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
  
 # 第二层
 w_conv2 = weight_variable([1, 1, 64, 64])
@@ -366,7 +368,7 @@ display_train_num = display_test_num // 10
 
 # 定义保存模型
 saver = tf.train.Saver()
-save_dir = "D:/save_path/GoogleNet/"
+save_dir = "../save_path/GoogleNet/"
 
 # 定义保存模型编号
 save_step = 0
