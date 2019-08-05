@@ -335,8 +335,8 @@ h_fc5 = tf.matmul(h_pool7_drop, W_fc5) + b_fc2
 pred2 = tf.nn.softmax(h_fc5)
 
 # 整合softmax
-forward = h_fc5 * 0.4 + h_fc4 * 0.3 + h_fc2 * 0.3
-pred = pred2 * 0.4 + pred1 * 0.3 + pred0 * 0.3
+forward = h_fc5 + h_fc4 * 0.3 + h_fc2 * 0.3
+pred = pred2 + pred1 * 0.3 + pred0 * 0.3
 
 # 定义损失函数
 with tf.name_scope("LossFunction"):
