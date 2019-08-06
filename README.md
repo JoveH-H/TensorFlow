@@ -14,3 +14,9 @@ TensorFlow代码例程目录
 5.CNN-LeNet-5 LeNet-5卷积神经网络
 
 6.ResNet 残差网络
+
+7.CheckPoint 检查点
+
+8.GoolgeNet 谷歌网络
+
+9.VGG16 迁移学习VGG16
