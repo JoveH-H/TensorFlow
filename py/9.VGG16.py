@@ -144,9 +144,9 @@ pred = vgg.pred
 
 # 定义损失函数
 with tf.name_scope("LossFunction"):
-    loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=forward, labels=y))
+    loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=forward, labels=y))
 
-train_epochs = 1410  # 设置迭代次数
+train_epochs = 500  # 设置迭代次数
 learning_rate = 0.0001  # 学习率
 
 # 梯度下降优化器 设置学习率和优化目标损失最小化
@@ -244,8 +244,8 @@ def plot_images_labels_prediction(idx, num=10):
         test_image = test_image.astype(np.float)
         for c in range(3):
             test_image[:, c] -= means[c]
-        test_forward, test_pred = sess.run([forward, pred], feed_dict={x: [test_image]})
-        max_index = np.argmax(test_forward)
+        test_pred = sess.run(pred, feed_dict={x: [test_image]})
+        max_index = np.argmax(test_pred)
         if max_index == 0:
             title = "cat   %3.f%%" % (test_pred[:, 0] * 100)
         else:
@@ -255,5 +255,5 @@ def plot_images_labels_prediction(idx, num=10):
     plt.show()
 
 
-# 显示第100-109张图像预测标签及其对应标签可能性
-plot_images_labels_prediction(100, 10)
+# 显示第11-20张图像预测标签及其对应标签可能性
+plot_images_labels_prediction(11, 10)
