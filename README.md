@@ -1,5 +1,5 @@
 # TensorFlow
-TensorFlow笔记 博客：https://blog.csdn.net/qq_32618327/column/info/39221
+[TensorFlow笔记博客](https://blog.csdn.net/qq_32618327/column/info/39221)
 
 TensorFlow代码例程目录
 
@@ -19,4 +19,4 @@ TensorFlow代码例程目录
 
 8.GoolgeNet 谷歌网络
 
-9.[VGG16 迁移学习VGG16](/py/9.VGG16.py)
+9.VGG16 迁移学习VGG16
