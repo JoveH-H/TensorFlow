@@ -473,7 +473,7 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
         ax.imshow(images[idx], cmap="binary")
         title = str(i) + ',' + label_dict[labels[idx]]
         if len(prediction) > 0:
-            title += '=>' + label_dict[prediction[idx]]
+            title += '=>' + label_dict[prediction[i]]
         ax.set_title(title, fontsize=10)
         idx += 1
     plt.show()
