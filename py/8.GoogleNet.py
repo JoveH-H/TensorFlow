@@ -452,13 +452,13 @@ for i in range(test_total_batch):
 test_acc = float(test_acc_sum / test_total_batch)
 print("Test accuracy:{:.6f}".format(test_acc))
 
-# 转换第1-10张测试图片pred预测结果独热编码格式为数字0-9
-prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_norm[0:10],
+# 转换第201-210张测试图片pred预测结果独热编码格式为数字0-9
+prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x: Xtest_norm[200:210],
                                                             dropout_rate0: 0,
                                                             dropout_rate1: 0,
                                                             dropout_rate2: 0})
 
-# 查看第1-10张测试图片的预测结果
+# 查看第201-210张测试图片的预测结果
 print(prediction_result)
 
 
@@ -479,5 +479,5 @@ def plot_images_labels_prediction(images, labels, prediction, idx, num=10):
     plt.show()
 
 
-# 验证第1-10张测试图片的预测结果
-plot_images_labels_prediction(Xtest, Ytest, prediction_result, 0, 10)
+# 验证第201-210张测试图片的预测结果
+plot_images_labels_prediction(Xtest, Ytest, prediction_result, 200, 210)
