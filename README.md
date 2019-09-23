@@ -1,7 +1,7 @@
 # TensorFlow笔记例程
 本代码库为博客专栏[《TensorFlow笔记》](https://blog.csdn.net/qq_32618327/column/info/39221)的例程代码库
 
-<div align=center><img src="https://img-blog.csdnimg.cn/20190918140213434.png" width="150" height="150" /></div>
+<div align=center><img src="https://img-blog.csdnimg.cn/20190527102051756.png" width="150" height="150" /></div>
 
 TensorFlow代码例程目录
 
